@@ -1,27 +1,49 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { getCompanies } from '@/app/actions/getCompanies';
-import Image from 'next/image';
-import { Company } from '@/types';
+import { useState, useEffect } from "react";
+import { debounce } from "lodash";
+import { getCompanies } from "@/app/actions/getCompanies";
+import Image from "next/image";
+import { Company } from "@/types";
 
 const Home = () => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [industry, setIndustry] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [industry, setIndustry] = useState("");
   const [minPrice, setMinPrice] = useState(100);
   const [maxPrice, setMaxPrice] = useState(1000000);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCompanies = async () => {
-      const companiesData = await getCompanies(searchQuery, industry, minPrice, maxPrice);
-      setCompanies(companiesData);
+      setLoading(true);
+      setError(null);
+      try {
+        const companiesData = await getCompanies(
+          searchQuery,
+          industry,
+          minPrice,
+          maxPrice
+        );
+        setCompanies(companiesData);
+      } catch (err) {
+        setError("Failed to fetch companies. Please try again.");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchCompanies();
+    const debouncedFetch = debounce(fetchCompanies, 300);
+    debouncedFetch();
+
+    return () => debouncedFetch.cancel();
   }, [searchQuery, industry, minPrice, maxPrice]);
 
   return (
     <div className="p-6">
+      {loading && <p>Loading...</p>}
+      {error && <p className="text-red-500">{error}</p>}
       <h2 className="text-3xl font-bold mb-4">Company Listings</h2>
       <div className="mb-4">
         <input

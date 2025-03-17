@@ -5,60 +5,73 @@ import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
 import Image from "next/image";
 import { useAuthContext } from "@/context/AuthContext";
 import { useParams } from "next/navigation";
-import { Company, Buyer } from "@/types"; 
+import { Company, Buyer } from "@/types";
 
 const CompanyDetail = () => {
   const { user } = useAuthContext();
   const supabase = createClientComponentClient();
-  const params = useParams(); 
+  const params = useParams();
   const [company, setCompany] = useState<Company | null>(null);
   const [interestedBuyers, setInterestedBuyers] = useState<Buyer[]>([]);
   const [isSeller, setIsSeller] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCompanyDetails = async () => {
-      const { id } = params; 
+      try {
+        const { id } = params;
 
-      if (!id) return;
-      const { data: companyData, error: companyError } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("id", id)
-        .single();
+        if (!id) {
+          setError("Company ID is missing.");
+          return;
+        }
+        const { data: companyData, error: companyError } = await supabase
+          .from("companies")
+          .select("*")
+          .eq("id", id)
+          .single();
 
-      if (companyError) {
-        console.error(companyError);
-        return;
-      }
+        if (companyError) throw companyError;
 
-      setCompany(companyData);
+        setCompany(companyData);
 
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user.id === companyData.seller_id) {
-        setIsSeller(true);
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.user.id === companyData.seller_id) {
+          setIsSeller(true);
 
-        const { data: buyers } = await supabase
-          .from("interests")
-          .select("user_id")
-          .eq("company_id", id);
+          const { data: buyers, error: buyersError } = await supabase
+            .from("interests")
+            .select("user_id")
+            .eq("company_id", id);
+          if (buyersError) throw buyersError;
 
-        setInterestedBuyers(buyers || []);
+          setInterestedBuyers(buyers || []);
+        }
+      } catch (error) {
+        setError(error.message);
+      } finally {
+        setLoading(false);
       }
     };
 
     fetchCompanyDetails();
   }, [params, supabase]);
 
-  if (!company ) return <p>Loading...</p>;
-
+  if (loading) return <p>Loading...</p>;
+  if (error) return <p className="text-red-500">{error}</p>;
+  if (!company) return <p>No company found.</p>;
+  
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-4">{company.name}</h1>
-      <Image 
-        src={company.image_url} 
-        alt={company.name} 
-        width={600} 
-        height={400} 
+      <Image
+        src={company.image_url}
+        alt={company.name}
+        width={600}
+        height={400}
         className="rounded-lg mb-4"
       />
       <p className="text-lg mb-4">{company.description}</p>

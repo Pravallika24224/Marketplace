@@ -2,8 +2,12 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Supabase URL or Key is missing in environment variables.');
+}
+
+const supabase = createClient(supabaseUrl, supabaseKey);
 
 export const getCompanies = async (searchQuery = '', industry = '', minPrice = 0, maxPrice = 1000000) => {
 
